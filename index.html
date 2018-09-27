@@ -1,0 +1,1439 @@
+
+
+<!DOCTYPE html>
+<html>
+<body>
+
+<div id="container">
+<canvas id="myCanvas1" width=810%; height=810%; style="border:1px solid #d3d3d3;">
+Your browser does not support the HTML5 canvas tag.</canvas>
+<canvas id="myCanvas" width=810%; height=810%; style="border:1px solid #d3d3d3;">
+Your browser does not support the HTML5 canvas tag.</canvas>
+
+</div>
+
+<p>Spiral commmander allows you to set waypoints on the map image to the right for the spiral to visit.</p>
+
+<p> The map is a visualization of roughly 1 million starting co-ordinates, graphed by image complexity (estimated by PNG file size). Press any number key then click with the mouse on the map (the image to the right) to set a waypoint there. You can select any waypoint with the corresponding number key. When selected (show by the square), waypoints can be replaced with a click, adjusted with the arrow keys, or deleted with backspace. The animation to the left will interpolate the path between the waypoints in sequence.</p>
+
+<a href="https://twitter.com/Aeium?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @Aeium</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+<a href="https://twitter.com/share?ref_src=twsrc%5Etfw" class="twitter-share-button" data-hashtags="spiralToy" data-show-count="false">Tweet</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+<iframe src="https://www.facebook.com/plugins/share_button.php?href=https%3A%2F%2Faeium.github.io%2FspiralToy&layout=button&size=small&mobile_iframe=true&width=59&height=20&appId" width="59" height="20" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true"></iframe>
+
+<button style="background-image:url('https://raw.githubusercontent.com/Aeium/spiralToy/master/save_to_url.png'); width:108px;height:20px;  border: none; padding: 0;" onclick="saveState()" /button>
+
+<img id="map" src="https://raw.githubusercontent.com/Aeium/spiralCommander/master/map1.jpg" hidden>
+
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/Detector.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/libs/stats.min.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+/*
+Copyright 2017 Nathan Epstein
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
+
+
+
+// Set the scene size.
+const WIDTH = 810;
+const HEIGHT = 810;
+
+// Set some camera attributes.
+const VIEW_ANGLE = 45;
+const ASPECT = WIDTH / HEIGHT;
+const NEAR = 0.1;
+const FAR = 10000;
+
+// Get the DOM element to attach to
+//const container =  document.querySelector('#container');
+
+// Create a WebGL renderer, camera
+// and a scene
+const renderer = new THREE.WebGLRenderer({ canvas: myCanvas1});
+var camera = new THREE.PerspectiveCamera( 45, 1, 0.1, 1000 );
+const scene = new THREE.Scene();
+
+
+// Add the camera to the scene.
+scene.add(camera);
+
+controls = new THREE.OrbitControls(camera);
+
+// Start the renderer.
+renderer.setSize(WIDTH, HEIGHT);
+
+// Attach the renderer-supplied
+// DOM element.
+container.appendChild(renderer.domElement);
+
+
+// https://gist.github.com/joates/6584908
+function linspace(a,b,n) {
+    if(typeof n === "undefined") n = Math.max(Math.round(b-a)+1,1);
+    if(n<2) { return n===1?[a]:[]; }
+    var i,ret = Array(n);
+    n--;
+    for(i=n;i>=0;i--) { ret[i] = (i*b+(n-i)*a)/n; }
+    return ret;
+}
+
+//https://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
+
+var angles = linspace(0,Math.PI * 2, 4)
+var slice  = Math.PI / 6
+
+var waypoints = {}  // record waypoints for more complex animations
+var pointsList = [0,0,0,0,0, 0,0,0,0,0]   // simple representation of active waypoints
+//var nextList = []                           // exact representation of active waypoints
+
+// maybe push some default waypoints?
+
+//for(var i = 0;i < 10; i++){  // initialize empty waypoints array
+//    waypoints.push({x: -1, y: -1, dist: -1})
+//}
+
+var cellSize2 = 1
+
+// switching variables defined below to waypoints array
+
+// these mark the position of the reticule on the map
+//var retX = 0   // ret for reticule, not return
+//var retY = 0
+
+var oldRetX = 0 // old reticule co-ordinates for animation
+var oldRetY = 0
+
+var animRetX = 0 // seems simpler for this to be global? Or should I just pass it recursively?
+var animRetY = 0 
+
+var deltaX = 0  // this is easier global too I think
+var deltaY = 0 
+
+var rho  = 0  // more globals
+var phi  = 0  // these are so I can write the rho and theta on the right side of the screen 
+
+var selectedNumber = 1  // which waypoint is selected
+
+var duration = 16000 // global for animation duration
+
+var startTime = 0
+
+var animLoop = false
+var runningThreads = 0
+var update = true
+var loopState = 1
+var lastSectionFlag = false
+
+// audio stuff
+
+var notes = []
+
+// calculate frequencies for synth
+
+circleArcLength = 2 * Math.PI
+circleFreq      = 1 / circleArcLength
+
+for (var n = -24-9; n < 0-9; n++){  // 24 from middle c, then 9 from middle a (440)
+
+    notes.push((440 * (2**(1/12))**n) / circleFreq )// formula for note n divided by base frequency of synth
+    //console.log(notes[n+24+9])
+}
+
+//var real = new Float32Array(300);
+//var imag = new Float32Array(300);
+var audioCtx = new AudioContext();
+var baseOsc  = audioCtx.createOscillator();
+var angleOsc = audioCtx.createOscillator();
+
+var fundemental = notes[0]
+
+filter = audioCtx.createBiquadFilter();
+filter.type = "lowpass"
+
+filter.frequency.setValueAtTime(0, audioCtx.currentTime);  // this is how i am going to turn the notes off because other ways are annoying
+
+baseOsc.type = 'sawtooth'
+//baseOsc.frequency.setValueAtTime(Math.PI * oscFactor, audioCtx.currentTime)
+baseOsc.connect(filter);
+baseOsc.start();
+
+angleOsc.type = 'triangle'
+//angleOsc.frequency.setValueAtTime(Math.PI * oscFactor, audioCtx.currentTime)
+angleOsc.connect(filter);
+angleOsc.start();
+
+filter.connect(audioCtx.destination);
+
+var noteOn = false
+
+//baseOsc.start();
+//angleOsc.start()
+
+function mod(n, m) {
+        return ((n % m) + m) % m;
+}
+
+function distance1(x1, y1, x2, y2){   
+
+    return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)   
+
+}
+
+function distance2(x1, y1, x2, y2){   
+
+    return  Math.abs(x1 - x2)  + Math.abs(y1 - y2)   // this isn't actually euclidian distance but it should work the same for relative distance ordering
+
+}
+ 
+
+function offset(x, y, angle, factor){
+
+
+    returnX = x + (Math.sin(angle))* factor
+    
+
+    
+    returnY = y + (Math.cos(angle)) * factor
+    
+    return [returnX,returnY]
+
+}
+
+var canvas1 = document.getElementById("myCanvas");
+var ctx1    = canvas1.getContext("2d");
+
+var img  = document.getElementById('map');
+
+//console.log(angles)
+//console.log(slice)
+
+var canvasLeft = canvas1.offsetLeft;
+var canvasTop  = canvas1.offsetTop;
+
+var count = 0
+var drawX = 520
+var drawY = 520
+
+
+function draw(eventX, eventY, animation){
+
+    //console.log(eventX, eventY)
+
+    drawSpiral(eventX, eventY)
+    drawReticule(animation)
+
+}
+
+
+var lights = []
+
+// create a point light
+lights[0] = new THREE.PointLight(0x00FFFF);
+lights[1] = new THREE.PointLight(0xFF00FF);
+lights[2] = new THREE.PointLight(0xFFFF00);
+
+  
+  
+// set its position
+lights[0].position.set(100,0,0)
+lights[1].position.set(0,1000,0)
+lights[2].position.set(0,0,100)
+
+
+// add to the scene
+scene.add(lights[0]);
+scene.add(lights[1]);
+scene.add(lights[2]);
+
+
+
+camera.position.z = 950;
+
+var numRings = 50
+
+var rings = []
+
+for (var i = 1; i < numRings; i++){
+
+  var ring = new THREE.TorusGeometry( i, .5, 10, 100 );//RingGeometry(i,i+3,100)
+  
+  var material = new THREE.MeshLambertMaterial() //MeshDepthMaterial() // { color: 0xffff00, side: THREE.DoubleSide } );//MeshBasicMaterial( { color: 0xffff00, side: THREE.DoubleSide } );
+
+  rings[i] = new THREE.Mesh( ring, material)
+  
+  scene.add(rings[i])
+
+}
+
+
+function drawSpiral(eventX, eventY){
+
+    ctx1.fillStyle="#FFFFFF";
+    ctx1.fillRect(0,0,810,canvas1.height);
+
+    ctx1.fillStyle="#000000";
+   
+    ctx1.font = "45px Arial";
+    //ctx1.fillText("Follow Me on Twitter!!",110,530);
+    ctx1.fillText("@Aeium",620,790);
+    
+	var pixX = (eventX / .75);
+	var pixY = (eventY / .75);
+   
+   
+    sizeValue = distance1(pixX, pixY, 540, 540)
+    
+    sizeValue = sizeValue / 540
+    
+    angle = Math.atan2( 540 - pixY, 540 - pixX) // (Math.PI)
+
+    //angleOsc.type = 'sawtooth'
+    
+    if(noteOn){
+        filter.frequency.setValueAtTime(sizeValue, audioCtx.currentTime);
+    }
+    else{
+        filter.frequency.setValueAtTime(0, audioCtx.currentTime);
+    }
+    // take inverses of angle because angle better describes wavelength than frequency
+    
+    angleOsc.frequency.setValueAtTime((1/Math.abs(angle)) * fundemental, audioCtx.currentTime)
+    //angleOsc.connect(audioCtx.destination);
+    angleOsc.connect(filter);
+    
+    baseOsc.frequency.setValueAtTime((1/(Math.PI * 2)) * fundemental, audioCtx.currentTime)
+    //baseOsc.connect(audioCtx.destination);
+    baseOsc.connect(filter); 
+    
+
+    
+    //angleOsc.start();
+    
+   
+    rho = sizeValue//console.log(angle)
+    phi = angle
+    
+    ctx1.font = "25px Arial";
+    //ctx1.fillText("Follow Me on Twitter!!",110,530);
+    
+    
+    dotList = []
+    
+    
+    //camera.position.set(0,0, 1250-sizeValue * 2);
+    
+    //console.log(camera.position.z)
+    
+    var invSize = 1 / sizeValue
+    
+    for (var i = 0; i < 300; i++){
+    
+        //console.log(canvasLeft/2)
+    
+        dotList.push(offset(540, 540, i * angle, ((sizeValue + 50) * i / 200) ))
+    
+        //.log(dotList[i])
+    
+        if( i > 0 && i < numRings){
+        
+            
+        
+            rings[i].rotation.set( (sizeValue*(300-i)+(1-sizeValue)*i)* angle, (sizeValue*i+(1-sizeValue)*(300-i))* angle,0);
+            //console.log(rings[i].rotation)
+        
+        }
+    
+    }
+    
+    renderer.render( scene, camera );
+    
+    
+    
+    for(var i = 0; i < 299; i++){
+    
+        if(i != 0){
+            //console.log(i)
+            //console.log(i+10)
+            //imag[i] = (dotList[i][0] - dotList[i+1][0]) / ((sizeValue + 50) * (i*i) / 200)
+            //real[i+1] = (dotList[i][1] - dotList[i+1][1]) / ((sizeValue + 50) * (i*i) / 200)
+        } 
+        ctx1.beginPath();
+        ctx1.moveTo(dotList[i][0] * .75,dotList[i][1] * .75);
+        ctx1.lineTo(dotList[i+1][0] * .75,dotList[i+1][1] * .75);
+        ctx1.stroke();
+    
+    }
+    
+    //console.log(real)
+    //console.log(imag)
+    //console.log(dotList)
+    
+    
+    //var wave = ac.createPeriodicWave(real, imag);
+    //osc.setPeriodicWave(wave);
+
+    //osc.connect(ac.destination);
+
+    
+}
+
+function setNote(){
+    console.log(fundemental)
+
+    //baseOsc.stop()
+    //angleOsc.stop()  
+  
+    
+    angleOsc.frequency.setValueAtTime((1/Math.abs(phi)) * fundemental, audioCtx.currentTime)
+    //angleOsc.connect(audioCtx.destination);
+    angleOsc.connect(filter);
+    
+    baseOsc.frequency.setValueAtTime((1/(Math.PI * 2)) * fundemental, audioCtx.currentTime)
+    //baseOsc.connect(audioCtx.destination);
+    baseOsc.connect(filter);
+
+    //baseOsc.start()
+    //angleOsc.start()
+    
+
+}
+
+function setPix(x, y, r, g, b, neigh){
+
+    if(highlightArray[neigh] == 1){
+
+        var xPix = x * cellSize;
+        var yPix = y * cellSize;
+
+        ctx.fillStyle = '#f00';
+        ctx.fillRect(xPix, yPix, cellSize, cellSize);
+
+        var xPix = (x * cellSize) + 2;
+        var yPix = (y * cellSize) + 2;
+
+        ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+        ctx.fillRect(xPix, yPix, cellSize-4, cellSize-4);
+
+
+    }
+    else{
+
+        var xPix = x * cellSize;
+        var yPix = y * cellSize;
+
+        ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+        ctx.fillRect(xPix, yPix, cellSize, cellSize);
+    }
+
+}
+
+
+function setPix2(x, y, r, g, b){
+
+    var xPix = x * cellSize2;
+    var yPix = y * cellSize2;
+
+    //console.log(cellSize2);
+	
+    //console.log(xPix);
+    //console.log(yPix);
+	
+
+    ctx1.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+    ctx1.fillRect(xPix, yPix, 1, 1);
+
+}
+
+function drawReticule(animation){
+
+    ctx1.drawImage(img, 0, 0, img.width,    img.height,     // source rectangle
+                        0, 0, 810, 810); // destination rectangle
+ 
+    ctx1.lineWidth= 2
+ 
+    if(animation){
+    
+            
+    
+            var x = animRetX  //= (event.pageX   - canvasLeft) + 810;
+            var y = animRetY //(event.pageY   - canvasTop);
+            
+            ctx1.strokeStyle="#FF0000";
+            ctx1.fillStyle = "#FF0000";
+            
+            ctx1.beginPath();
+            ctx1.moveTo(x+20,y);
+            ctx1.lineTo(x-20,y);
+            ctx1.stroke();
+    
+            ctx1.beginPath();
+            ctx1.moveTo(x,y-20);
+            ctx1.lineTo(x,y+20);
+            ctx1.stroke();
+    
+            ctx1.beginPath();
+            ctx1.arc(x, y, 2, 0, 2 * Math.PI, false);
+            ctx1.fill()
+    
+            ctx1.strokeStyle="#000000";
+            
+    }
+
+        //ctx2.fillStyle = 'rgb('+255+',' +0+ ','+0+')';
+
+    var nextList = []
+        
+    for(var i = 0; i < 10; i++)
+        if(pointsList[i] == 1){
+            
+            nextList.push(i+1)  // +1 so 0 becomes 10 instead of 0, so numbers are in order for user
+        
+    }
+        
+    //console.log("pointsList")
+    //console.log(pointsList)
+        
+    //console.log("nextList")
+    //console.log(nextList)
+    
+    //console.log(selectedNumber)
+    
+    if(nextList.length > 0){
+                       
+    for(var i = 0; i < nextList.length-1; i++){
+                        
+        //console.log(nextList[i])
+        //console.log(nextList[nextList.length-1])
+        //console.log(waypoints[nextList[i]])
+                        
+        var x = waypoints[nextList[i]].x  //= (event.pageX   - canvasLeft) + 810;
+        var y = waypoints[nextList[i]].y       //(event.pageY   - canvasTop);
+        
+        var jumpX = waypoints[nextList[i+1]].x
+        var jumpY = waypoints[nextList[i+1]].y
+       
+        //ctx2.fillStyle = 'rgb('+255+',' +0+ ','+0+')';
+
+        ctx1.fillStyle = "#FF0000";
+        
+        ctx1.font = "20px Arial";
+        
+        ctx1.fillText(nextList[i].toString(),x+5,y+17);
+        
+        ctx1.font = "25px Arial";
+        
+        ctx1.strokeStyle="#FF0000";
+        
+        ctx1.beginPath();
+        ctx1.moveTo(x,y);
+        ctx1.lineTo(jumpX,jumpY);
+        ctx1.stroke();
+    
+        if(nextList[i] == selectedNumber){
+    
+            ctx1.beginPath();
+            ctx1.moveTo(x+20,y+20);
+            ctx1.lineTo(x+20,y-20);
+            ctx1.lineTo(x-20,y-20);
+            ctx1.lineTo(x-20,y+20);
+            ctx1.lineTo(x+20,y+20);
+            ctx1.stroke();
+
+        }else{
+            
+            ctx1.beginPath();
+            ctx1.arc(x, y, 2, 0, 2 * Math.PI, false);
+            ctx1.fill()
+        }
+        
+        
+        ctx1.strokeStyle="#000000";
+    }
+    
+    var x = waypoints[nextList[nextList.length-1]].x //= (event.pageX   - canvasLeft) + 810;
+    var y = waypoints[nextList[nextList.length-1]].y       //(event.pageY   - canvasTop);
+        
+    var jumpX = waypoints[nextList[0]].x 
+    var jumpY = waypoints[nextList[0]].y
+       
+    //ctx2.fillStyle = 'rgb('+255+',' +0+ ','+0+')';
+
+    ctx1.fillStyle = "#FF0000";
+    
+    ctx1.font = "20px Arial";
+        
+    ctx1.fillText(nextList[i].toString(),x+5,y+17);
+        
+    ctx1.font = "25px Arial";
+        
+    ctx1.strokeStyle="#FF0000";
+        
+    ctx1.beginPath();
+    ctx1.moveTo(x,y);
+    ctx1.lineTo(jumpX,jumpY);
+    ctx1.stroke();
+    
+    
+    if(nextList[i] == selectedNumber){
+    
+        ctx1.beginPath();
+        ctx1.moveTo(x+20,y+20);
+        ctx1.lineTo(x+20,y-20);
+        ctx1.lineTo(x-20,y-20);
+        ctx1.lineTo(x-20,y+20);
+        ctx1.lineTo(x+20,y+20);
+        ctx1.stroke();
+    
+
+    }else{
+        
+        ctx1.beginPath();
+        ctx1.arc(x, y, 2, 0, 2 * Math.PI, false);
+        ctx1.fill()
+    }
+       
+    ctx1.strokeStyle="#000000";
+    
+    }
+    
+    /*
+    setPix2(x, y, 255, 0, 0, 0);
+	
+	setPix2(mod(x + 2, 810) + 810, y, 256, 0, 0);
+	setPix2(mod(x + 3, 810) + 810, y, 256, 0, 0);
+	setPix2(mod(x + 4, 810) + 810, y, 256, 0, 0);
+
+	setPix2(mod(x - 2, 810) + 810, y, 256, 0, 0);
+	setPix2(mod(x - 3, 810) + 810, y, 256, 0, 0);
+	setPix2(mod(x - 4, 810) + 810, y, 256, 0, 0);	
+
+	setPix2(x, mod(y + 2, 810), 256, 0, 0);
+	setPix2(x, mod(y + 3, 810), 256, 0, 0);
+	setPix2(x, mod(y + 4, 810), 256, 0, 0);
+	
+	setPix2(x, mod(y - 2, 810), 256, 0, 0);
+	setPix2(x, mod(y - 3, 810), 256, 0, 0);
+	setPix2(x, mod(y - 4, 810), 256, 0, 0);
+    */
+    
+    
+    ctx1.fillStyle="#000000";
+    ctx1.fillRect(810,0,285,50);
+    
+    ctx1.fillStyle="#FFFFFF";
+    ctx1.fillRect(813,3,279,44);
+    
+    ctx1.fillStyle="#000000";
+    
+    ctx1.fillText('r: '+ rho.toFixed(4),825,35);
+    ctx1.fillText('ϕ: '+ phi.toFixed(4),965,35);
+    
+    ctx1.lineWidth=1
+    
+	
+}
+
+
+
+function drawBackground(){
+
+    ctx2.drawImage(img, 0, 0, img.width,    img.height,     // source rectangle
+                        0, 0, canvas2.width, canvas2.height); // destination rectangle
+
+	ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+	
+}
+
+
+function getBitArray(num){
+
+    var bitArray = new Object();
+	
+    //console.log(num);
+	
+    for (var i = 0; i < 16; ++i) {
+        bitArray[i] = num % 2;
+		//console.log(i + ":" + bitArray[i]);
+		num = Math.floor(num/2);
+	}
+
+    return bitArray; 
+}
+
+function get4BitArray(num){
+
+    var bitArray = new Object();
+	
+    //console.log(num);
+	
+    for (var i = 0; i < 4; ++i) {
+        bitArray[i] = num % 2;
+		//console.log(i + ":" + bitArray[i]);
+		num = Math.floor(num/2);
+	}
+
+    return bitArray; 
+}
+
+function get8BitArray(num){
+
+    var bitArray = new Object();
+	
+    //console.log(num);
+	
+    for (var i = 0; i < 8; ++i) {
+        bitArray[i] = num % 2;
+		//console.log(i + ":" + bitArray[i]);
+		num = Math.floor(num/2);
+	}
+
+    return bitArray; 
+}
+
+function get6BitArray(num){
+
+    var bitArray = new Object();
+	
+    //console.log(num);
+	
+    for (var i = 0; i < 6; ++i) {
+        bitArray[i] = num % 2;
+		//console.log(i + ":" + bitArray[i]);
+		num = Math.floor(num/2);
+	}
+
+    return bitArray; 
+}
+
+/// expand with color, background etc.
+function drawTextBG(ctx, txt, font, x, y) {
+
+    /// lets save current state as we make a lot of changes        
+    ctx.save();
+
+    /// set font
+    ctx.font = font;
+
+    /// draw text from top - makes life easier at the moment
+    ctx.textBaseline = 'top';
+
+    /// color for background
+    ctx.fillStyle = '#fff';
+
+    /// get width of text
+    var width = ctx.measureText(txt).width;
+
+    /// draw background rect assuming height of font
+    ctx.fillRect(x-3, y-3, width+6, parseInt(font, 10)+6);
+	
+    /// text color
+    ctx.fillStyle = '#000';
+
+    /// draw text on top
+    ctx.fillText(txt, x, y);
+
+    /// restore original state
+    ctx.restore();
+}
+
+function showRules(ctx, bitArray, x, y)  {
+
+
+    for (var i = 0; i < 15; i++){
+	
+        if(bitArray[i] == 1){
+            ctx.drawImage(imageList1[i], x+(50*i), y);
+		}
+		else{
+            ctx.drawImage(imageList0[i], x+(50*i), y);
+		}
+	
+	
+	}
+
+}
+
+function utoa(str) {
+    return window.btoa(unescape(encodeURIComponent(str)));
+}
+
+
+var canvasLeft = canvas1.offsetLeft;
+var canvasTop  = canvas1.offsetTop;
+
+document.getElementById("container").addEventListener('click', function(event) {
+    
+    var pixX = (event.pageX - canvasLeft);
+    var pixY = event.pageY - canvasTop;
+    
+    if(pixX <= 810 && pixY <= 810 && pixX >= 0 && pixY >=0){
+    
+        animLoop = false
+    
+        console.log("number : " + selectedNumber.toString())
+   
+        waypoints[selectedNumber.toString()] = {'x' : pixX, 'y' : pixY}
+        pointsList[selectedNumber -1] = 1
+
+        console.log(waypoints)
+    
+        drawReticule(false)
+        resetAnimation()
+    
+    }
+    
+}); 
+	
+    //console.log(pixX)
+    //console.log(pixY)
+    
+    //oldRetX = retX
+    //oldRetY = retY
+    
+    //retX = pixX;
+    //retY = pixY;
+    
+    //frames = 2000
+    
+    //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+    //window.history.pushState( null, null,  urlString);
+    
+    //console.log(retX)
+    //console.log(retY)
+    
+    //draw(retX, retY);
+	    //drawTextBG(ctx3, rule.toString() + '         ', '32px arial', 40, 30 );
+        //showRules(ctx, rule, 0,0);
+
+        //var urlString = "/heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+        //window.history.pushState( null, null, urlString);
+	    //drawStarts(160, 0, bitArray);
+        //xhttp.open("GET", "autolog1.asp?rule=" + rule.toString(), true);
+		//xhttp.send()
+	
+
+
+function saveState(){
+
+    //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+    
+    console.log(waypoints)
+    
+    var urlString = "?waypoints=" + JSON.stringify(waypoints)
+    
+    console.log(urlString)
+    
+    window.history.pushState( null, null,  urlString);
+
+}
+// this as far as I can tell does nothing and doesn't work.
+/*
+document.getElementById("container").addEventListener("load", function(event){
+
+    //draw(168,642,false);
+
+    oldRetX = 168
+    oldRetY = 642
+
+    retX = 198
+    retY = 672
+    
+    frames = 2000
+    
+    requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+            startTime = timestamp || new Date().getTime()
+            animRetX = oldRetX
+            animRetY = oldRetY
+            moveit(timestamp, frames, (retX - oldRetX), (retY - oldRetY))
+             })
+
+});
+*/
+
+function getDeltas1(prevTime, nextSection){
+    
+    //console.log(prevTime)
+    //console.log(loopState)
+    
+    var section = loopState
+
+    var nextList = []
+        
+    for(var i = 0; i < 10; i++)
+        if(pointsList[i] == 1){
+            
+            nextList.push(i+1)  // +1 so 0 becomes 10 instead of 0, so numbers are in order for user
+        
+    }
+    
+    var start = waypoints[nextList[section -1]]
+    
+    
+    if(section == nextList.length){
+    
+        var end = waypoints[nextList[0]]
+        getDeltas2(start, end)  // this will set globals for the animation
+        if(nextSection){
+            requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+                        startTime = timestamp || new Date().getTime()
+                    //if(newSection){
+                        //loopState = 1
+                    //} 
+                        lastSectionFlag = true
+                        moveit(timestamp, duration)
+            })
+        }
+        else{
+            requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+                        lastSectionFlag = true
+                        startTime = prevTime//timestamp || new Date().getTime()
+                        moveit(prevTime, duration)
+            })
+        }
+        return
+    }
+    else{
+    
+        var end = waypoints[nextList[section]]
+        
+        getDeltas2(start, end)  // this will set globals for the animation
+        if(nextSection){
+            requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+                        startTime = timestamp || new Date().getTime()
+                        lastSectionFlag = false
+                        //if(newSection){
+                        //loopState++
+                        //}
+                        moveit(timestamp, duration)
+            })
+        }
+        else{
+            requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+                        startTime = prevTime//timestamp || new Date().getTime()
+                        lastSectionFlag = false
+                        moveit(prevTime, duration)
+            })
+        }
+        return
+    
+    }
+
+}
+
+function getDeltas2(start, end){
+
+    //console.log(start)
+    //console.log(end)
+
+    oldRetX = start.x
+    oldRetY = start.y
+    
+    deltaX = end.x - oldRetX
+    deltaY = end.y - oldRetY
+    
+    //console.log("dx: " + deltaX)
+    //console.log("dy: " + deltaY)
+
+}
+ 
+/*** loopstate:  -1 is waiting for waypoints
+                  1 is first section
+                  2 is second
+                  ect..
+                  
+
+*/   
+
+function moveit(timestamp, duration){
+
+    //console.log("threads: " + runningThreads)
+    //console.log("animloop: " + animLoop)
+   
+    
+    if(animLoop){
+   
+        if(update){
+            //console.log(startTime)
+        
+            //console.log("liveupdate")
+            update = false
+            getDeltas1(startTime, false)
+            return
+        }
+        
+        //if browser doesn't support requestAnimationFrame, generate our own timestamp using Date:
+        //var timestamp = timestamp || new Date().getTime()
+        var runtime = timestamp - startTime
+        var progress = runtime / duration
+        progress = Math.min(progress, 1)
+    
+        animRetX = oldRetX + deltaX * progress
+        animRetY = oldRetY + deltaY * progress
+        
+        //console.log(animRetX)
+        
+        draw(animRetX, animRetY, true)
+        
+        //el.style.left = (dist * progress).toFixed(2) + 'px'
+        if (runtime < duration){ // if duration not met yet
+            requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with     parameters
+                //startTime = timestamp || new Date().getTime()
+                moveit(timestamp, duration)
+                return
+            })
+        
+        }
+        else{
+            //console.log(lastSectionFlag)
+            //console.log(loopState)
+        
+            if(lastSectionFlag){
+                lastSectionFlag = false
+                loopState = 1
+            }
+            else{
+                loopState++
+            }
+            getDeltas1(timestamp, true)
+            return
+        }
+    }
+    else{
+        
+        runningThreads--
+        return
+    
+    }
+    
+}
+
+function resetAnimation(){
+   
+            update = true
+            animLoop = true
+        
+            if(runningThreads == 0){  // only start a new animation loop if there isn't one please
+            
+                console.log("runningThreads1: " + runningThreads)
+                console.log("new animation loop start")
+            
+                requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+                runningThreads++
+                startTime = timestamp || new Date().getTime()
+                animRetX = oldRetX
+                animRetY = oldRetY
+                moveit(timestamp, duration)
+            })}
+
+}
+ 
+//requestAnimationFrame(function(timestamp){
+//    startTime = timestamp || new Date().getTime() //if browser doesn't support requestAnimationFrame, generate our own timestamp using Date
+//    moveit(timestamp, adiv, 400, 2000) // 400px over 1 second
+//})
+
+/*
+document.getElementById("container").addEventListener('mousemove', function(event) {
+   
+   
+   if( (event.pageX - canvasLeft) < 810){
+       draw(event.pageX - canvasLeft, event.pageY - canvasTop)}
+   
+
+});*/
+
+document.onkeydown = function(e) {
+    switch (e.keyCode) {
+        case 8:
+        case 46:
+        
+            delete waypoints[selectedNumber]
+            pointsList[selectedNumber -1 ] = 0
+        
+            loopState = 1
+            resetAnimation()
+        
+        // waypoint selection controls    
+            break
+        case 48:
+        case 96:
+        
+            selectedNumber = 10
+            break
+        
+        case 49:
+        case 97:
+        
+            selectedNumber = 1
+            break
+        
+        case 50:
+        case 98:
+        
+            selectedNumber = 2
+            break
+        
+        case 51:
+        case 99:
+        
+            selectedNumber = 3
+            break
+        
+        case 52:
+        case 100:
+        
+            selectedNumber = 4
+            break
+        
+        case 53:
+        case 101:
+        
+            selectedNumber = 5
+            break
+        
+        case 54:
+        case 102:
+        
+            selectedNumber = 6
+            break
+        
+        case 55:
+        case 103:
+        
+            selectedNumber = 7
+            break
+        
+        case 56:
+        case 104:
+        
+            selectedNumber = 8
+            break
+        
+        case 57:
+        case 105:
+        
+            selectedNumber = 9
+            break
+        
+            
+    
+        case 37:
+            //oldRetX = retX
+            //oldRetY = retY
+            //retX = mod(retX - 1, 1080);
+            
+            
+            animLoop = false
+            waypoints[selectedNumber].x = mod(waypoints[selectedNumber].x - 1, 1080)
+            resetAnimation()
+            
+            
+            
+            //console.log(retX)
+            //console.log(retX)
+            //console.log(oldRetX)
+            //console.log(oldRetY)
+            
+            //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+            //window.history.pushState( null, null,  urlString);
+            
+            //requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+            //startTime = timestamp || new Date().getTime()
+            //animRetX = oldRetX
+            //animRetY = oldRetY
+            //moveit(timestamp, 2000, (retX - oldRetX), (retY - oldRetY))
+            
+            //drawReticule(false)
+            // })
+            break;
+        case 38:
+            //oldRetX = retX
+            //oldRetY = retY
+            //retY = mod(retY - 1, 1080);
+            animLoop = false
+            
+            waypoints[selectedNumber].y = mod(waypoints[selectedNumber].y - 1, 1080)
+            resetAnimation()
+            
+            //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+            //window.history.pushState( null, null,  urlString);
+            
+            //requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+            //startTime = timestamp || new Date().getTime()
+            //animRetX = oldRetX
+            //animRetY = oldRetY
+            //moveit(timestamp, 2000, (retX - oldRetX), (retY - oldRetY))
+            ///drawReticule(false)
+             //})
+            break;
+        case 39:
+            //oldRetX = retX
+            //oldRetY = retY
+            //retX = mod(retX + 1, 1080);
+            
+            animLoop = false
+            
+            waypoints[selectedNumber].x = mod(waypoints[selectedNumber].x + 1, 1080)
+            resetAnimation()
+            
+            //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+            //window.history.pushState( null, null,  urlString);
+            
+            //requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+            //startTime = timestamp || new Date().getTime()
+            //animRetX = oldRetX
+            //animRetY = oldRetY
+            //moveit(timestamp, 2000, (retX - oldRetX), (retY - oldRetY))
+            //drawReticule(false)
+            // })
+            break;
+        case 40:
+            //oldRetX = retX
+            //oldRetY = retY
+            //retY = mod(retY + 1, 1080);
+            animLoop = false
+            
+            waypoints[selectedNumber].y = mod(waypoints[selectedNumber].y + 1, 1080)
+            resetAnimation()
+            
+            //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+            //window.history.pushState( null, null,  urlString);
+            
+            //requestAnimationFrame(function(timestamp){ // call requestAnimationFrame again with parameters
+            //startTime = timestamp || new Date().getTime()
+            //animRetX = oldRetX
+            //animRetY = oldRetY
+            //moveit(timestamp, 2000, (retX - oldRetX), (retY - oldRetY))
+            //drawReticule(false)
+            // })
+            break;
+            /*
+        case 32:
+            var rule = retX + (retY * 1080);
+            var bitArray = getBitArray(rule);
+            drawAuto(rule, true);
+			drawTextBG(ctx3, rule.toString() + '         ', '32px arial', 40, 30 );
+            //showRules(ctx, rule, 0,0);
+	        drawStarts(160, 0, bitArray);
+
+            var urlString = "/heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+
+            window.history.pushState( null, null, urlString);
+            xhttp.open("GET", "autolog2.asp?rule=" + rule.toString(), true);
+			xhttp.send();
+			*/
+
+        case 32:
+        
+            // starting and stopping notes with filter because stopping osc is error prone
+            
+            if(noteOn){
+                noteOn = false
+                filter.frequency.setValueAtTime(0, audioCtx.currentTime);
+            }
+            else{
+                noteOn = true
+                filter.frequency.setValueAtTime(sizeValue, audioCtx.currentTime);
+            }
+            
+        // note keys in order:       z,  s,  x,  d,  c,  v,  g,  b,  h,  n,  j,  m,   ,,  l,   .,   ;,   /
+        // note key codes in order: 90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 74, 77, 188, 76, 190, 186, 191
+
+        
+        case 90:
+            fundemental = notes[0]
+            setNote()
+            break
+            
+        case 83:
+            fundemental = notes[1]
+            setNote()
+            break
+            
+        case 88:
+            fundemental = notes[2]
+            setNote()
+            break
+        
+        case 68:
+            fundemental = notes[3]
+            setNote()
+            break
+            
+        case 67:
+            fundemental = notes[4]
+            setNote()
+            break
+            
+        case 86:
+            fundemental = notes[5]
+            setNote()
+            break
+            
+        case 71:
+            fundemental = notes[6]
+            setNote()
+            break
+            
+        case 66:
+            fundemental = notes[7]
+            setNote()
+            break
+            
+        case 72:
+            fundemental = notes[8]
+            setNote()
+            break
+            
+        case 78:
+            fundemental = notes[9]
+            setNote()
+            break
+            
+        case 74:
+            fundemental = notes[10]
+            setNote()
+            break
+            
+        // note keys in order:       z,  s,  x,  d,  c,  v,  g,  b,  h,  n,  j,  m,   ,,  l,   .,   ;,   /
+        // note key codes in order: 90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 74, 77, 188, 76, 190, 186, 191
+            
+        case 77:
+            fundemental = notes[11]
+            setNote()
+            break
+            
+        case 188:
+            fundemental = notes[12]
+            setNote()
+            break
+            
+        case 76:
+            fundemental = notes[13]
+            setNote()
+            break
+            
+        case 186:
+            fundemental = notes[14]
+            setNote()
+            break
+            
+        case 191:
+            fundemental = notes[15]
+            setNote()
+            break
+            
+        case 90:
+            fundemental = notes[16]
+            setNote()
+            break
+    }
+}
+
+draw(500,500, true)
+
+// load saved data
+var waypointsString = getParameterByName('waypoints')
+if(waypointsString != null){
+
+    waypointObject =  JSON.parse(waypointsString)
+    
+    for (var i = 0; i < 10; i++){
+        
+        if (typeof waypointObject[i] != 'undefined'){
+        
+            waypoints[i.toString()] = waypointObject[i]
+            pointsList[mod(i-1,10)] = 1  // -1 mod 10 because number 0 is last in row and goes to 10
+        
+        }
+    
+        //waypoints[waypointObject[i].id] = waypointObject[i]
+    
+        //console.log("waypointObject: " + waypointObject[i])
+    
+    }
+    
+    //console.log(waypoints)
+    update = true
+    drawReticule(false)
+    resetAnimation()
+}
+
+function animate() {
+
+    //console.log('test')
+
+	requestAnimationFrame( animate );
+	
+	controls.update();
+	
+	//lights[ 2 ].position.set( Math.sin(count / 10)* 20, Math.sin(count / 9)*  - 20 ,  Math.sin(count / 11)* 20 );
+	//lights[ 1 ].position.set( Math.sin(count / 130)* - 20, Math.sin(count / 70)*   20 ,  Math.sin(count / 100)* 20 );
+	
+	renderer.render( scene, camera );
+}
+animate();
+
+
+
+/*
+var url_y1 = getParameterByName('y1')
+
+var url_x2 = getParameterByName('x2')
+var url_y2 = getParameterByName('y2')
+
+if(url_x1 === null && url_x2 === null){
+    // default example
+    oldRetX = 166
+    oldRetY = 640
+
+    retX = 171
+    retY = 645
+    }
+else if(url_x2 === null){
+   // single image
+   oldRetX = parseInt(url_x1)
+   oldRetY = parseInt(url_y1)
+   retX = parseInt(url_x1)
+   retY = parseInt(url_y1)
+}
+else {
+    // linked animation
+   oldRetX = parseInt(url_x1)
+   oldRetY = parseInt(url_y1)
+   retX = parseInt(url_x2)
+   retY = parseInt(url_y2)
+}*/
+    
+    
+
+//console.log("test")
+
+//draw(168,642,false);
+//else {
+//    ctx2.drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas2.width, canvas2.height);
+//}
+//drawAuto(11155);
+
+
+</script>
+
+</body>
+</html>
