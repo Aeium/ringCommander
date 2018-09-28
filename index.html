@@ -355,7 +355,7 @@ function drawSpiral(eventX, eventY){
         
             
         
-            rings[i].rotation.set( (sizeValue*(300-i)+(1-sizeValue)*i)* angle, (sizeValue*i+(1-sizeValue)*(300-i))* angle,0);
+            rings[i].rotation.set( (sizeValue*(numRings-i)+(1-sizeValue)*i)* angle, (sizeValue*i+(1-sizeValue)*(numRings-i))* angle,0);
             //console.log(rings[i].rotation)
         
         }
