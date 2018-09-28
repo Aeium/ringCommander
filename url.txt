@@ -1,0 +1,1 @@
+file:///C:/Users/Go%20Center%20Media/Desktop/ringCommander/index.html?waypoints={%221%22:{%22x%22:556,%22y%22:263},%222%22:{%22x%22:584,%22y%22:269},%223%22:{%22x%22:569,%22y%22:291}}
