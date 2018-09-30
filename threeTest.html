@@ -11,10 +11,10 @@
 		</style>
 	</head>
 	<body>
-		<script src="three.js"></script>
-		<script src="js/controls/OrbitControls.js"></script>
-		<script src="js/Detector.js"></script>
-		<script type="text/javascript" src="js/controls/FirstPersonControls.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/Detector.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/libs/stats.min.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
 
 		<script>
 
@@ -43,28 +43,106 @@ document.body.appendChild( renderer.domElement );
 			scene.add( lights[ 2 ] );
 
 
-var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+var ringGeometry = new THREE.TorusGeometry( 5, .01, 16,100 );
 var material = new THREE.MeshStandardMaterial( { color: 0xAAAAAA } );
+var material2 = new THREE.MeshStandardMaterial( { color: 0xAA0000 } );
 
-var shapes = [];	
+var ring = new THREE.Mesh(ringGeometry, material)
+var ring2 = new THREE.Mesh(ringGeometry, material2)
+ring.position.set(0,0,0)
+ring2.position.set(0,0,0)
 
-for(var i = 0; i < 4096; i++){
+ring.rotation.order = 'ZYX'
+ring2.rotation.order = 'ZYX'
 
-	//if(mod(i,3) == 0 || mod(i,5) == 0){
-	
-		if(mod(i, 6) > 2  && mod(i, 7) > 1){// && mod(i, )){
-	
-		var geometry = new THREE.BoxGeometry( Math.sin(i/3) * 1 +1.6 + i/20, Math.sin(i/2) * 3 +1.6 + i/20, Math.sin(i/13) * mod(i, 14) +1 + Math.cos(i/5) * mod(i, 7)+ i / 8);
+scene.add(ring)
+//scene.add(ring2)
 
-		shapes[i] =  new THREE.Mesh( geometry, material );
+var spGeometry = new THREE.SphereGeometry(1,60,60)
+var linMat1 = new  THREE.LineBasicMaterial( { color: 0xff0000, linewidth: 3})
+var linMat1_2 = new  THREE.LineBasicMaterial( { color: 0xDDA0A0, linewidth: 3})
+var linMat2 = new  THREE.LineBasicMaterial( { color: 0x00ff00, linewidth: 3})
+var linMat3 = new  THREE.LineBasicMaterial( { color: 0x0000ff, linewidth: 3})
+    
+    
+    
+var sphere1 = new THREE.Mesh(spGeometry, linMat1)
+var sphere1_2 = new THREE.Mesh(spGeometry, linMat1_2)
+var sphere2 = new THREE.Mesh(spGeometry, linMat2)
+var sphere3 = new THREE.Mesh(spGeometry, linMat3)
+    
+sphere1.position.set(5,0,0)
+sphere1_2.position.set(-5,0,0)
+sphere2.position.set(0,5,0)
+sphere3.position.set(0,0,5)
+    
+scene.add(sphere1)
+scene.add(sphere1_2)
+scene.add(sphere2)
+scene.add(sphere3)
 
-		shapes[i].position.set((mod(i,64)-32) * 3 + i/16,(Math.floor(i/64)-32) * 3 + i /16,0)
-		scene.add( shapes[i] );
-		}
-	//}
+var sums = []
+sums[0] = 0
+sums[1] = 0
+sums[2] = 0
+
+var sums2 = []
+
+sums2[0] = 0
+sums2[1] = 0
+
+// I figured it out for Z first rotations horray 
+
+function rotateAndDist(rot1, rot2){
+
+    ring.rotation.set(rot2, rot1, 0)  // rot1 happens first because zyx order
+    //ring2.rotation.set(rot2, rot1, 0)  // rot1 happens first because zyx order
+
+    //scale1 = 5 * Math.abs(Math.sin(rot2))* Math.abs(Math.sin(rot1))
+    scale1 = Math.min(5 * Math.abs(Math.sin(rot1)), 5 * Math.abs(Math.cos(rot2)))  //- 5* Math.abs(Math.cos(rot2))
+    if(scale1 == 0){ scale1 += .000001 }
+    
+    sphere1.scale.x = scale1
+    sphere1.scale.y = scale1
+    sphere1.scale.z = scale1
+    
+    scale1_2 = Math.min(5 * Math.abs(Math.sin(rot1)), 5 * Math.abs(Math.cos(rot2))) 
+    if(scale1_2 == 0){ scale1_2 += .000001 }
+    
+    scale1_2 = .00001
+    
+    sphere1_2.scale.x = scale1_2
+    sphere1_2.scale.y = scale1_2
+    sphere1_2.scale.z = scale1_2
+    
+    //scale2 = Math.min(5 * Math.abs(Math.cos(rot1)), 5 * Math.abs(Math.sin(rot2))) //5 * Math.abs(Math.sin(rot2))* Math.abs(Math.cos(rot1))
+    scale2 =  5 * Math.abs(Math.sin(rot2)) //5 * Math.abs(Math.sin(rot2))* Math.abs(Math.cos(rot1))
+    if(scale2 == 0){ scale2 += .000001 }
+    
+    //scale2 = .00001
+    
+    sphere2.scale.x = scale2
+    sphere2.scale.y = scale2
+    sphere2.scale.z = scale2
+    
+    
+    scale3 = 5 * Math.abs(Math.cos(rot2))
+    if(scale3 == 0){ scale3 += .000001 }
+    
+    //scale3 = .00001
+    
+    sphere3.scale.x = scale3
+    sphere3.scale.y = scale3
+    sphere3.scale.z = scale3
+    
+    sums[0] += scale1
+    sums[1] += scale2
+    sums[2] += scale3
+
 
 }
-	
+
+rotateAndDist(23, 0)
 //shape.position.set(5,5,-5)
 //scene.add( shape );
 
@@ -81,70 +159,22 @@ function animate() {
 	//shape.rotation.x += 0.01;
 	//shape.rotation.y += 0.01;
 	
+    rotateAndDist(count/400, count/387) //Math.random(), Math.random())
+    //rotateAndDist(Math.random(), Math.random())
+    
+    var num1 = Math.random()
+    var num2 = Math.random()
+    
+    sums2[0] += Math.abs(Math.sin(num1)) * Math.abs(Math.sin(num2))
+    sums2[1] += Math.abs(Math.sin(num1)) * Math.abs(Math.cos(num2))
+    
+    console.log(sums2)
+    
+    //console.log(Math.max(sums) - Math.min(sums))
+    
 	count++
 	
-	//geometry = new THREE.TorusKnotGeometry( 10, count + 1, mod(count / 80, 300), 16 );
-	//shape = new THREE.Mesh( geometry, material );
-	//scene.add( shape );
-	
-	for(var i = 0; i < 4096; i++){
-
-		if(mod(i, 6) > 2  && mod(i, 7) > 1){
-	
-			shapes[i].translateY(Math.cos(count/9.1) * Math.sin(i) * Math.sin(i/3) * .8)
-			shapes[i].translateZ(Math.cos(count/11.2) * Math.sin(i)  * Math.sin(i/5) * .8)
-			shapes[i].translateX(Math.cos(count/7.4) * Math.cos(i)  * Math.sin(i/2) * .8)
-	
-			//shapes[i].rotation.y += Math.sin(i * count) / 300
-	
-		/*
-		if(mod(i,9) == 0){
-
-			shapes[i].rotation.y += 0.05
-			shapes[i].rotation.x += 0.015
-		
-			shapes[i].translateX(Math.sin(count/10) * .05)
-			shapes[i].translateY(Math.cos(count/7) * .05)
-
-		}
-		
-		if(mod(i,11) == 0){
-		
-			shapes[i].rotation.x += 0.06
-			shapes[i].rotation.y += 0.01
-
-			shapes[i].translateY(Math.cos(count/13) * .05)
-			shapes[i].translateZ(Math.cos(count/10) * .05)
-
-		}
-		
-		if(mod(i,7) == 0){
-		
-			shapes[i].rotation.x += 0.03
-			shapes[i].rotation.y += 0.02
-
-			shapes[i].translateX(Math.cos(count/3) * .05)
-			shapes[i].translateZ(Math.cos(count/5) * .05)
-
-		}
-		
-		if(mod(i,8) == 0){
-
-			shapes[i].rotation.y += 0.04
-			shapes[i].rotation.x += 0.005
-		
-			shapes[i].translateY(Math.cos(count/9) * .05)
-			shapes[i].translateZ(Math.cos(count/11) * .05)
-
-		}*/
-		}
-		
-	}
-	
 	controls.update();
-	
-	//lights[ 2 ].position.set( Math.sin(count / 10)* 20, Math.sin(count / 9)*  - 20 ,  Math.sin(count / 11)* 20 );
-	lights[ 1 ].position.set( Math.sin(count / 130)* - 20, Math.sin(count / 70)*   20 ,  Math.sin(count / 100)* 20 );
 	
 	renderer.render( scene, camera );
 }

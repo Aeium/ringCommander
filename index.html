@@ -24,7 +24,7 @@ Your browser does not support the HTML5 canvas tag.</canvas>
 
 <button style="background-image:url('https://raw.githubusercontent.com/Aeium/spiralToy/master/save_to_url.png'); width:108px;height:20px;  border: none; padding: 0;" onclick="saveState()" /button>
 
-<img id="map" src="https://raw.githubusercontent.com/Aeium/spiralCommander/master/map1.jpg" hidden>
+<img id="map" src="https://i.imgur.com/yebqVJm.png" hidden>
 
     <script src="https://cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
     <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/Detector.js"></script>
@@ -33,7 +33,7 @@ Your browser does not support the HTML5 canvas tag.</canvas>
 
 <script>
 /*
-Copyright 2017 Nathan Epstein
+Copyright 2018 Nathan Epstein
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
@@ -277,6 +277,8 @@ for (var i = 1; i < numRings; i++){
   var material = new THREE.MeshLambertMaterial() //MeshDepthMaterial() // { color: 0xffff00, side: THREE.DoubleSide } );//MeshBasicMaterial( { color: 0xffff00, side: THREE.DoubleSide } );
 
   rings[i] = new THREE.Mesh( ring, material)
+  rings[i].rotation.order = 'ZYX'
+  
   
   scene.add(rings[i])
 
@@ -297,6 +299,8 @@ function drawSpiral(eventX, eventY){
 	var pixX = (eventX / .75);
 	var pixY = (eventY / .75);
    
+    var xScal = pixX / 1080
+    var yScal = pixY / 1080
    
     sizeValue = distance1(pixX, pixY, 540, 540)
     
@@ -354,9 +358,30 @@ function drawSpiral(eventX, eventY){
         if( i > 0 && i < numRings){
         
             
+            rotParam1  = (sizeValue*i+(1-sizeValue)*(numRings-i))* angle
+            rotParam1i = (sizeValue*(numRings-i)+(1-sizeValue)*(i))* angle
+         
+            
+            rotParam2  = (sizeValue*(numRings-i)+(1-sizeValue)*i)* angle
+            rotParam2i = (sizeValue*(i)+(1-sizeValue)*(numRings-i))* angle
         
-            rings[i].rotation.set( (sizeValue*(numRings-i)+(1-sizeValue)*i)* angle, (sizeValue*i+(1-sizeValue)*(numRings-i))* angle,0);
+            rot2 = xScal * i + (yScal * i)
+        
+            //rings[i].rotation.set( rot2 , 0, angle * i )
+            rings[i].rotation.set(  rotParam2i, 0, rotParam1i);
+            //rings[i].rotation.set(  xScal * i, yScal * (numRings -i), 0);
+            //rings[i].rotation.set( rotParam2, rotParam1, 0);
+        
+        
+        
+            //rings[i].rotation.set( 0, (sizeValue*i+(1-sizeValue)*(numRings-i))* angle,(sizeValue*(numRings-i)+(1-sizeValue)*i)* angle);
+            
+            //rings[i].rotation.set((sizeValue*(numRings-i)+(1-sizeValue)*i)* angle , 0, (sizeValue*i+(1-sizeValue)*(numRings-i))* angle);
+ 
+            //rings[i].rotation.set( (sizeValue*(numRings-i)+(1-sizeValue)*i)* angle, (sizeValue*i+(1-sizeValue)*(numRings-i))* angle,0);
             //console.log(rings[i].rotation)
+            
+            //rings[i].rotation.set( 0 , 0,(sizeValue*(numRings-i)+(1-sizeValue)*i)* angle);
         
         }
     
@@ -829,14 +854,24 @@ document.getElementById("container").addEventListener('click', function(event) {
 		//xhttp.send()
 	
 
-
 function saveState(){
 
     //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
     
     console.log(waypoints)
     
-    var urlString = "?waypoints=" + JSON.stringify(waypoints)
+    var cameraMat = camera.matrix.toArray()
+    
+    cameraMat = cameraMat.map(function(each_element){
+        return Number(each_element.toFixed(4));
+    });
+
+    
+    var cameraString = JSON.stringify(cameraMat);
+    
+    var waypointString =  JSON.stringify(waypoints)
+    
+    var urlString = "?waypoints=" + waypointString + "&camera=" + cameraString
     
     console.log(urlString)
     
@@ -1374,6 +1409,14 @@ if(waypointsString != null){
     update = true
     drawReticule(false)
     resetAnimation()
+}
+var cameraString = getParameterByName('camera')
+if(cameraString != null){
+
+    camera.matrix.fromArray(JSON.parse(cameraString));
+    // Get back position/rotation/scale attributes
+    camera.matrix.decompose(camera.position, camera.quaternion, camera.scale);
+
 }
 
 function animate() {
