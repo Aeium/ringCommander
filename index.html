@@ -1648,6 +1648,11 @@ if(waypointsString != null){
     update = true
     drawReticule(false)
     resetAnimation()
+}else{
+
+    waypoints[selectedNumber.toString()] = {'x' : startX, 'y' : startY}
+    pointsList[selectedNumber -1] = 1
+
 }
 var cameraString = getParameterByName('c')
 if(cameraString == null){
@@ -1698,17 +1703,14 @@ camera.matrix.decompose(camera.position, camera.quaternion, camera.scale);
     var startX = 500;
     var startY = 500;
     
-        animLoop = false
+    animLoop = false
     
-        //console.log("number : " + selectedNumber.toString())
-   
-        waypoints[selectedNumber.toString()] = {'x' : startX, 'y' : startY}
-        pointsList[selectedNumber -1] = 1
+    //console.log("number : " + selectedNumber.toString())
 
-        console.log(waypoints)
+    console.log(waypoints)
     
-        drawReticule(false)
-        resetAnimation()
+    drawReticule(false)
+    resetAnimation()
     
     
     
