@@ -2,6 +2,23 @@
 
 <!DOCTYPE html>
 <html>
+<style>
+.collapsible {
+
+}
+
+.active, .collapsible:hover {
+    background-color: #555;
+}
+
+.content {
+    padding: 0 18px;
+    display: none;
+    overflow: hidden;
+    background-color: #f1f1f1;
+}
+</style>
+
 <body>
 
 <div id="container">
@@ -12,9 +29,19 @@ Your browser does not support the HTML5 canvas tag.</canvas>
 
 </div>
 
+<p>
+<input type="checkbox" id="mouseover" checked>Mouseover<br><input type="checkbox" id="time">Time<br>
+</p>
+
+<p>
+<button onclick="toggleInfo()">Info</button>
+<div id="info">
 <p>Spiral commmander allows you to set waypoints on the map image to the right for the spiral to visit.</p>
 
 <p> The map is a visualization of roughly 1 million starting co-ordinates, graphed by image complexity (estimated by PNG file size). Press any number key then click with the mouse on the map (the image to the right) to set a waypoint there. You can select any waypoint with the corresponding number key. When selected (show by the square), waypoints can be replaced with a click, adjusted with the arrow keys, or deleted with backspace. The animation to the left will interpolate the path between the waypoints in sequence.</p>
+</div>
+</p>
+
 
 <a href="https://twitter.com/Aeium?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @Aeium</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
@@ -22,7 +49,8 @@ Your browser does not support the HTML5 canvas tag.</canvas>
 
 <iframe src="https://www.facebook.com/plugins/share_button.php?href=https%3A%2F%2Faeium.github.io%2FspiralToy&layout=button&size=small&mobile_iframe=true&width=59&height=20&appId" width="59" height="20" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true"></iframe>
 
-<button style="background-image:url('https://raw.githubusercontent.com/Aeium/spiralToy/master/save_to_url.png'); width:108px;height:20px;  border: none; padding: 0;" onclick="saveState()" /button>
+<button style="background-image:url('https://raw.githubusercontent.com/Aeium/spiralToy/master/save_to_url.png'); width:108px;height:20px;  border: none; padding: 0;" onclick="saveState(fullScreen = false)" /button>
+<button style="background-image:url('https://raw.githubusercontent.com/Aeium/spiralToy/master/save_to_url.png'); width:108px;height:20px;  border: none; padding: 0;" onclick="saveState(fullScreen = true)" /button>
 
 <img id="map" src="https://i.imgur.com/yebqVJm.png" hidden>
 
@@ -39,78 +67,6 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
-
-
-
-var ws = new WebSocket('ws://localhost:8080/');
-		ws.onopen = function() {
-			console.log('CONNECT');
-		};
-
-		ws.onclose = function() {
-			console.log('DISCONNECT');
-		};
-		ws.onmessage = function(event) {
-			console.log('MESSAGE: ' + event.data);
-		};
-		
-		var frames = 1;
-
-		// Request Animation Frame Override
-		var raf = window.requestAnimationFrame;
-		var next = null;
-		var hold = false;
-		window.requestAnimationFrame = function rafOverride(callback) {
-		  // Find canvas
-		  var canvas = document.getElementById("myCanvas1");//document.querySelector('canvas');
-		  if (canvas) {
-		    // Done capturing?
-		    if (frames < 0) {
-		      window.requestAnimationFrame = raf;
-		      return raf(callback);
-		    }
-
-		    // Hold rendering until screenshot is done
-		    if (!hold) {
-		      hold = true;
-		      frames--;
-		      setTimeout(function () {
-		        callback();
-		        capture(canvas, function () {
-		          // Resume rendering
-		          hold = false;
-		          rafOverride(next);
-		        });
-		      }, 5);
-		    }
-		    else {
-		      next = callback;
-		    }
-		  }
-		  else {
-		    // Canvas not created yet?
-		    return raf(callback);
-		  }
-		}
-
-		function capture(canvas, callback) {
-		  // Capture image and strip header from string.  
-		  
-		  //var pixNum = animRetY * 810 +  animRetX
-		  
-		  //console.log(pixNum)
-		  
-		  
-		  var image = canvas.toDataURL('image/png').slice(22); //("000000" + pixNum).slice(-6) + 
-
-		  // Writing image as msg
-		  ws.send(image);
-
-		  setTimeout(function () {
-		    // Resume rendering
-		    callback();
-		  }, 5);
-		}
 
 
 // Set the scene size.
@@ -132,11 +88,10 @@ const renderer = new THREE.WebGLRenderer({ canvas: myCanvas1});
 var camera = new THREE.PerspectiveCamera( 45, 1, 0.1, 1000 );
 const scene = new THREE.Scene();
 
-
 // Add the camera to the scene.
 scene.add(camera);
 
-controls = new THREE.OrbitControls(camera);
+controls = new THREE.OrbitControls(camera, renderer.domElement);
 
 // Start the renderer.
 renderer.setSize(WIDTH, HEIGHT);
@@ -167,10 +122,100 @@ function getParameterByName(name, url) {
     return decodeURIComponent(results[2].replace(/\+/g, " "));
 }
 
+function toggleParams(){
+
+    var x = document.getElementById("inputDiv");
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+
+function toggleInfo(){
+
+    var x = document.getElementById("info");
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+
+var useNumRing     = true
+var useMapAngle    = false
+var invertRingNum  = true
+var invertScalar   = true
+
+var rotYtimeScalar      = 80
+var rotYringScalar      = 60
+
+var animateTime = false
+
+
+var checkbox = document.getElementById('time');
+checkbox.addEventListener("change", function(){
+  var isChecked = checkbox.checked;
+  if(isChecked){ //checked
+    animateTime = true
+  }else{ //unchecked
+    animateTime = false
+  }
+});
+
+var mouseCheck = document.getElementById('mouseover')
+
+
+/*
+function applyParams(){
+
+
+//<input type="text" id="NumRings">Number of Rings<br>
+//<input type="text" id="timeScale">time scalar<br>
+//  <input type="checkbox" id="ringNumCheck">use ring number<br>
+//  <input type="text" id="ringNumScale">ring number scalar<br>
+//  <input type="checkbox" id="invRingNum">invert ring number<br>
+//  <input type="checkbox" id="applyAngle">use map angle<br>
+//  <input type="text" id="mapAngleScale">map angle scalar<br>
+//<button onclick="applyParams()">Apply</button>
+  
+
+    var numRingText           = document.getElementById('NumRings').value
+    var timeScaleText         = document.getElementById('timeScale').value
+    var ringNumberScaleText   = document.getElementById('ringNumScale').value
+    //var mapAngleScaleText     = document.getElementById('ringNumScale').value
+    
+    setRings(parseInt(numRingText))
+    rotYtimeScalar =  parseFloat(timeScaleText)
+    rotYringScalar =  parseFloat(ringNumberScaleText)
+    
+    useNumRing     = document.getElementById('ringNumCheck').checked
+    invertRingNum  = document.getElementById('invRingNum').checked
+    useMapAngle    = document.getElementById('applyAngle').checked 
+
+    console.log("num rings")
+    console.log(numRings)
+    console.log("rotYtimeScalar")
+    console.log(rotYtimeScalar)
+    console.log("rotYringScalar")
+    console.log(rotYringScalar)
+    
+    console.log("useNumRing")
+    console.log(useNumRing)
+    
+    console.log("invertRingNum")
+    console.log(invertRingNum)
+    
+    console.log("useMapAngle")
+    console.log(useMapAngle)
+    
+    
+}*/
+
 var angles = linspace(0,Math.PI * 2, 4)
 var slice  = Math.PI / 6
 
-var waypoints = {}  // record waypoints for more complex animations
+var waypoints = {}  // record waypoints for more complexs
 var pointsList = [0,0,0,0,0, 0,0,0,0,0]   // simple representation of active waypoints
 //var nextList = []                           // exact representation of active waypoints
 
@@ -191,8 +236,11 @@ var cellSize2 = 1
 var oldRetX = 0 // old reticule co-ordinates for animation
 var oldRetY = 0
 
-var animRetX = 0 // seems simpler for this to be global? Or should I just pass it recursively?
-var animRetY = 0 
+var animRetX = 500 // seems simpler for this to be global? Or should I just pass it recursively?
+var animRetY = 500 
+
+var mouseX = 500
+var mouseY = 500
 
 var deltaX = 0  // this is easier global too I think
 var deltaY = 0 
@@ -212,6 +260,7 @@ var update = true
 var loopState = 1
 var lastSectionFlag = false
 
+var time = 0
 
 // png capture stuff
 
@@ -294,7 +343,7 @@ function offset(x, y, angle, factor){
 var canvas1 = document.getElementById("myCanvas");
 var ctx1    = canvas1.getContext("2d");
 
-var img  = null //document.getElementById('map');
+var img  = document.getElementById('map');
 
 //console.log(angles)
 //console.log(slice)
@@ -341,24 +390,42 @@ scene.add(lights[2]);
 
 camera.position.z = 950;
 
-var numRings = 50
-
 var rings = []
 
-for (var i = 1; i < numRings; i++){
+var numRings = 50
 
-  var ring = new THREE.TorusGeometry( i, .5, 10, 100 );//RingGeometry(i,i+3,100)
-  
-  var material = new THREE.MeshLambertMaterial() //MeshDepthMaterial() // { color: 0xffff00, side: THREE.DoubleSide } );//MeshBasicMaterial( { color: 0xffff00, side: THREE.DoubleSide } );
+function setRings(inputNum){
 
-  rings[i] = new THREE.Mesh( ring, material)
-  rings[i].rotation.order = 'ZYX'
+    numRings = inputNum
+
+    for (var i = 1; i < rings.length; i++){   // remove old rings incase new setting has less rings
+    
+        scene.remove(rings[i])
+    
+    }
+    
+    rings = []
+
+    for (var i = 1; i < numRings; i++){
+
+        var ring = new THREE.TorusGeometry( i, .5, 10, 100 );//RingGeometry(i,i+3,100)
   
+        var material = new THREE.MeshLambertMaterial() //MeshDepthMaterial() // { color: 0xffff00, side: THREE.DoubleSide } );//MeshBasicMaterial( { color: 0xffff00, side: THREE.DoubleSide } );
+
+        rings[i] = new THREE.Mesh( ring, material)
+        rings[i].rotation.order = 'ZYX'
   
-  scene.add(rings[i])
+        
+        scene.add(rings[i])
+
+    }
+    
+    drawSpiral(animRetX, animRetY)
 
 }
 
+setRings(numRings)
+ 
 
 function drawSpiral(eventX, eventY){
 
@@ -371,8 +438,19 @@ function drawSpiral(eventX, eventY){
     //ctx1.fillText("Follow Me on Twitter!!",110,530);
     ctx1.fillText("@Aeium",620,790);
     
-	var pixX = (eventX / .75);
-	var pixY = (eventY / .75);
+    var pixX = null
+    var pixY = null
+    
+    if(mouseCheck.checked){
+    
+        pixX = (mouseX / .75)
+        pixY = (mouseY / .75)
+    
+    }else{
+    
+        pixX = (eventX / .75);
+        pixY = (eventY / .75);
+   }
    
     var xScal = pixX / 1080
     var yScal = pixY / 1080
@@ -385,6 +463,7 @@ function drawSpiral(eventX, eventY){
 
     //angleOsc.type = 'sawtooth'
     
+    /*
     if(noteOn){
         filter.frequency.setValueAtTime(sizeValue, audioCtx.currentTime);
     }
@@ -400,20 +479,16 @@ function drawSpiral(eventX, eventY){
     baseOsc.frequency.setValueAtTime((1/(Math.PI * 2)) * fundemental, audioCtx.currentTime)
     //baseOsc.connect(audioCtx.destination);
     baseOsc.connect(filter); 
-    
+    */
 
-    
     //angleOsc.start();
-    
-   
+       
     rho = sizeValue//console.log(angle)
     phi = angle
     
     ctx1.font = "25px Arial";
     //ctx1.fillText("Follow Me on Twitter!!",110,530);
     
-    
-    dotList = []
     
     
     //camera.position.set(0,0, 1250-sizeValue * 2);
@@ -422,16 +497,10 @@ function drawSpiral(eventX, eventY){
     
     var invSize = 1 / sizeValue
     
-    for (var i = 0; i < 300; i++){
+    //var rotY = 
     
-        //console.log(canvasLeft/2)
+    for (var i = 1; i < numRings; i++){
     
-        dotList.push(offset(540, 540, i * angle, ((sizeValue + 50) * i / 200) ))
-    
-        //.log(dotList[i])
-    
-        if( i > 0 && i < numRings){
-        
             
             rotParam1  = (sizeValue*i+(1-sizeValue)*(numRings-i))* angle
             rotParam1i = (sizeValue*(numRings-i)+(1-sizeValue)*(i))* angle
@@ -441,9 +510,45 @@ function drawSpiral(eventX, eventY){
             rotParam2i = (sizeValue*(i)+(1-sizeValue)*(numRings-i))* angle
         
             rot2 = xScal * i + (yScal * i)
+            
+            
         
             //rings[i].rotation.set( rot2 , 0, angle * i )
-            rings[i].rotation.set(  rotParam2i, 0, rotParam1i);
+            
+            //var useNumRing     = false
+            //var useMapAngle    = false
+            //var invertRingNum  = true
+            
+            var rotY = 0
+            
+            //if(animateTime){
+            if(true){
+            
+                if(invertScalar){
+                    rotY =  time / rotYtimeScalar
+                }
+                else{
+                    rotY = rotYtimeScalar
+                }
+                if(useNumRing){
+                    if(invertRingNum){
+                        rotY = rotY * (numRings - i) / rotYringScalar
+                    }else{
+                        rotY = rotY * i / rotYringScalar
+                    }
+                }
+                
+                if(useMapAngle){
+                    rotY = rotY * angle
+                }
+                //rings[i].rotation.set(  rotParam2i, (time * rotYtimeFactor) * (, rotParam1i);
+            }
+            
+            //            var rotY = 0
+        
+            rings[i].rotation.set(  rotParam2i, rotY, rotParam1i);
+            
+            
             //rings[i].rotation.set(  xScal * i, yScal * (numRings -i), 0);
             //rings[i].rotation.set( rotParam2, rotParam1, 0);
         
@@ -457,29 +562,11 @@ function drawSpiral(eventX, eventY){
             //console.log(rings[i].rotation)
             
             //rings[i].rotation.set( 0 , 0,(sizeValue*(numRings-i)+(1-sizeValue)*i)* angle);
-        
-        }
     
     }
     
     renderer.render( scene, camera );
     
-    
-    
-    for(var i = 0; i < 299; i++){
-    
-        if(i != 0){
-            //console.log(i)
-            //console.log(i+10)
-            //imag[i] = (dotList[i][0] - dotList[i+1][0]) / ((sizeValue + 50) * (i*i) / 200)
-            //real[i+1] = (dotList[i][1] - dotList[i+1][1]) / ((sizeValue + 50) * (i*i) / 200)
-        } 
-        ctx1.beginPath();
-        ctx1.moveTo(dotList[i][0] * .75,dotList[i][1] * .75);
-        ctx1.lineTo(dotList[i+1][0] * .75,dotList[i+1][1] * .75);
-        ctx1.stroke();
-    
-    }
     
     //console.log(real)
     //console.log(imag)
@@ -563,8 +650,8 @@ function setPix2(x, y, r, g, b){
 
 function drawReticule(animation){
 
-    //ctx1.drawImage(img, 0, 0, img.width,    img.height,     // source rectangle
-     //                   0, 0, 810, 810); // destination rectangle
+    ctx1.drawImage(img, 0, 0, img.width,    img.height,     // source rectangle
+                        0, 0, 810, 810); // destination rectangle
  
     ctx1.lineWidth= 2
  
@@ -886,6 +973,7 @@ document.getElementById("container").addEventListener('click', function(event) {
     if(pixX <= 810 && pixY <= 810 && pixX >= 0 && pixY >=0){
     
         animLoop = false
+        update = true
     
         console.log("number : " + selectedNumber.toString())
    
@@ -900,6 +988,19 @@ document.getElementById("container").addEventListener('click', function(event) {
     }
     
 }); 
+
+
+document.getElementById("container").addEventListener('mousemove', function(event) {
+   
+   
+   //if( (event.pageX - canvasLeft) < 810){
+       //draw(event.pageX - canvasLeft, event.pageY - canvasTop)}
+
+    mouseX = event.pageX - canvasLeft
+    mouseY = event.pageY - canvasTop
+   
+});
+
 	
     //console.log(pixX)
     //console.log(pixY)
@@ -929,7 +1030,7 @@ document.getElementById("container").addEventListener('click', function(event) {
 		//xhttp.send()
 	
 
-function saveState(){
+function saveState(fullScreen){
 
     //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
     
@@ -946,7 +1047,7 @@ function saveState(){
     
     var waypointString =  JSON.stringify(waypoints)
     
-    var urlString = "?waypoints=" + waypointString + "&camera=" + cameraString
+    var urlString = "?w=" + waypointString + "&c=" + cameraString
     
     console.log(urlString)
     
@@ -1047,6 +1148,8 @@ function getDeltas1(prevTime, nextSection){
 
 }
 
+
+
 function getDeltas2(start, end){
 
     //console.log(start)
@@ -1073,16 +1176,20 @@ function getDeltas2(start, end){
 
 function moveit(timestamp, duration){
 
+    //console.log("move it")
+
     //console.log("threads: " + runningThreads)
     //console.log("animloop: " + animLoop)
    
     
     if(animLoop){
    
+    //console.log("animloop")
+   
         if(update){
-            //console.log(startTime)
+            console.log(startTime)
         
-            //console.log("liveupdate")
+            console.log("liveupdate")
             update = false
             getDeltas1(startTime, false)
             return
@@ -1100,6 +1207,12 @@ function moveit(timestamp, duration){
         //console.log(animRetX)
         
         draw(animRetX, animRetY, true)
+        
+        if(animateTime){
+            time++
+        }
+        controls.update();
+        renderer.render( scene, camera );
         
         //el.style.left = (dist * progress).toFixed(2) + 'px'
         if (runtime < duration){ // if duration not met yet
@@ -1126,7 +1239,8 @@ function moveit(timestamp, duration){
         }
     }
     else{
-        
+    
+        console.log('end case')
         runningThreads--
         return
     
@@ -1134,11 +1248,26 @@ function moveit(timestamp, duration){
     
 }
 
+function arrayOr(array) {
+    return array[0] || array[1] || array[2] || array[3] || array[4] || array[5] || array[6] || array[7] || array[8] || array[9]
+}
+
+
 function resetAnimation(){
+
+            //console.log(time)
    
-            update = true
+            //update = true
             animLoop = true
-        
+ 
+            pointsListBool = arrayOr(pointsList) //pointsList.reduce(add, 0);
+            
+            //console.log("pointsListBool")
+            //console.log(pointsListBool)
+            //console.log(pointsList)
+            //console.log("runningThreads")
+            //console.log(runningThreads)
+ 
             if(runningThreads == 0){  // only start a new animation loop if there isn't one please
             
                 console.log("runningThreads1: " + runningThreads)
@@ -1151,6 +1280,23 @@ function resetAnimation(){
                 animRetY = oldRetY
                 moveit(timestamp, duration)
             })}
+            
+            if(animateTime){
+                time++
+            }
+    
+    
+            
+            //draw(animRetX,animRetY, true)//drawSpiral(X, Y)
+    
+            //requestAnimationFrame( resetAnimation );
+	
+            //controls.update();
+	
+            //lights[ 2 ].position.set( Math.sin(count / 10)* 20, Math.sin(count / 9)*  - 20 ,  Math.sin(count / 11)* 20 );
+            //lights[ 1 ].position.set( Math.sin(count / 130)* - 20, Math.sin(count / 70)*   20 ,  Math.sin(count / 100)* 20 );
+	
+            //renderer.render( scene, camera );
 
 }
  
@@ -1169,16 +1315,27 @@ document.getElementById("container").addEventListener('mousemove', function(even
 
 });*/
 
+function getSum(total, num) {
+    return total + num;
+}
+
+
 document.onkeydown = function(e) {
+
+    console.log(e.keyCode)
     switch (e.keyCode) {
         case 8:
         case 46:
         
-            delete waypoints[selectedNumber]
-            pointsList[selectedNumber -1 ] = 0
+            if(pointsList.reduce(getSum) > 1){   // this will have probles if you delete the last waypoint so lets not do that
+                delete waypoints[selectedNumber]
+                pointsList[selectedNumber -1 ] = 0
         
-            loopState = 1
-            resetAnimation()
+                loopState = 1
+            
+                update = true
+                resetAnimation()
+            }
         
         // waypoint selection controls    
             break
@@ -1249,7 +1406,7 @@ document.onkeydown = function(e) {
             //oldRetY = retY
             //retX = mod(retX - 1, 1080);
             
-            
+            update = true
             animLoop = false
             waypoints[selectedNumber].x = mod(waypoints[selectedNumber].x - 1, 1080)
             resetAnimation()
@@ -1278,6 +1435,7 @@ document.onkeydown = function(e) {
             //oldRetY = retY
             //retY = mod(retY - 1, 1080);
             animLoop = false
+            update = true
             
             waypoints[selectedNumber].y = mod(waypoints[selectedNumber].y - 1, 1080)
             resetAnimation()
@@ -1299,6 +1457,7 @@ document.onkeydown = function(e) {
             //retX = mod(retX + 1, 1080);
             
             animLoop = false
+            update = true
             
             waypoints[selectedNumber].x = mod(waypoints[selectedNumber].x + 1, 1080)
             resetAnimation()
@@ -1319,6 +1478,7 @@ document.onkeydown = function(e) {
             //oldRetY = retY
             //retY = mod(retY + 1, 1080);
             animLoop = false
+            update = true
             
             waypoints[selectedNumber].y = mod(waypoints[selectedNumber].y + 1, 1080)
             resetAnimation()
@@ -1349,6 +1509,8 @@ document.onkeydown = function(e) {
             xhttp.open("GET", "autolog2.asp?rule=" + rule.toString(), true);
 			xhttp.send();
 			*/
+            
+        
 
         case 32:
         
@@ -1457,10 +1619,12 @@ document.onkeydown = function(e) {
     }
 }
 
+
+
 draw(500,500, true)
 
 // load saved data
-var waypointsString = getParameterByName('waypoints')
+var waypointsString = getParameterByName('w')
 if(waypointsString != null){
 
     waypointObject =  JSON.parse(waypointsString)
@@ -1485,30 +1649,71 @@ if(waypointsString != null){
     drawReticule(false)
     resetAnimation()
 }
-var cameraString = getParameterByName('camera')
-if(cameraString != null){
+var cameraString = getParameterByName('c')
+if(cameraString == null){
 
-    camera.matrix.fromArray(JSON.parse(cameraString));
-    // Get back position/rotation/scale attributes
-    camera.matrix.decompose(camera.position, camera.quaternion, camera.scale);
-
+    cameraString = "[0.9053,0,0.4248,0,0.036,0.9964,-0.0768,0,-0.4232,0.0848,0.902,0,-63.4372,12.7116,135.2081,1]"//cameraString = getParameterByName('camera')
+    
 }
 
-function animate() {
+camera.matrix.fromArray(JSON.parse(cameraString));
+    // Get back position/rotation/scale attributes
+camera.matrix.decompose(camera.position, camera.quaternion, camera.scale);
 
-    //console.log('test')
 
-	requestAnimationFrame( animate );
+//function animate() {
+    
+//    if(animateTime){
+//        time++
+//    }
+    
+//	requestAnimationFrame( animate );
 	
-	controls.update();
+//	controls.update();
 	
 	//lights[ 2 ].position.set( Math.sin(count / 10)* 20, Math.sin(count / 9)*  - 20 ,  Math.sin(count / 11)* 20 );
 	//lights[ 1 ].position.set( Math.sin(count / 130)* - 20, Math.sin(count / 70)*   20 ,  Math.sin(count / 100)* 20 );
 	
-	renderer.render( scene, camera );
-}
-animate();
+//	renderer.render( scene, camera );
+//}
 
+//applyParams()
+
+    console.log("num rings")
+    console.log(numRings)
+    console.log("rotYtimeScalar")
+    console.log(rotYtimeScalar)
+    console.log("rotYringScalar")
+    console.log(rotYringScalar)
+    
+    console.log("useNumRing")
+    console.log(useNumRing)
+    
+    console.log("invertRingNum")
+    console.log(invertRingNum)
+    
+    console.log("useMapAngle")
+    console.log(useMapAngle)
+
+    var startX = 500;
+    var startY = 500;
+    
+        animLoop = false
+    
+        //console.log("number : " + selectedNumber.toString())
+   
+        waypoints[selectedNumber.toString()] = {'x' : startX, 'y' : startY}
+        pointsList[selectedNumber -1] = 1
+
+        console.log(waypoints)
+    
+        drawReticule(false)
+        resetAnimation()
+    
+    
+    
+
+img.onload = resetAnimation
 
 
 /*
