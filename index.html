@@ -1033,48 +1033,57 @@ document.getElementById("container").addEventListener('mousemove', function(even
 function saveState(fullScreen){
 
     //var urlString = "?x1="+ oldRetX.toString() + "&y1=" + oldRetY.toString() + "&x2=" + retX.toString() + "&y2=" + retY.toString() //heatmap/color/" + rule.toString() + "/" + BitArraytob64(startArray);
+     
+    var cameraMat       = null
+    var cameraString    = null
+    var waypointString  = null 
+    var urlString       = null
     
     if(fullScreen){
-    
+
     console.log(waypoints)
     
-    var cameraMat = camera.matrix.toArray()
+    cameraMat = camera.matrix.toArray()
     
     cameraMat = cameraMat.map(function(each_element){
         return Number(each_element.toFixed(4));
     });
 
     
-    var cameraString = JSON.stringify(cameraMat);
+    cameraString = JSON.stringify(cameraMat);
     
-    var waypointString =  JSON.stringify(waypoints)
+    waypointString =  JSON.stringify(waypoints)
     
-    var urlString = "/fullscreen/?w=" + waypointString + "&c=" + cameraString
+    urlString = "?w=" + waypointString + "&c=" + cameraString
     
     console.log(urlString)
     
-    window.history.pushState( null, null,  urlString);
+    prompt("Fullscreen URL (copy):", "https://aeium.github.io/ringCommander/fullscreen/" + urlString);
+    
+    //window.history.pushState( null, null,  urlString);
     
     }else{
     
     console.log(waypoints)
     
-    var cameraMat = camera.matrix.toArray()
+    cameraMat = camera.matrix.toArray()
     
     cameraMat = cameraMat.map(function(each_element){
         return Number(each_element.toFixed(4));
     });
 
     
-    var cameraString = JSON.stringify(cameraMat);
+    cameraString = JSON.stringify(cameraMat);
     
-    var waypointString =  JSON.stringify(waypoints)
+    waypointString =  JSON.stringify(waypoints)
     
-    var urlString = "?w=" + waypointString + "&c=" + cameraString
+    urlString = "?w=" + waypointString + "&c=" + cameraString
     
     console.log(urlString)
     
-    window.history.pushState( null, null,  urlString);
+    prompt("URL (copy):", "https://aeium.github.io/ringCommander/" + urlString);
+    
+    //window.history.pushState( null, null,  urlString);
     
     }
 
@@ -1671,14 +1680,17 @@ if(waypointsString != null){
     
     //console.log(waypoints)
     update = true
-    drawReticule(false)
+    //drawReticule(false)
     resetAnimation()
 }else{
 
-    waypoints[selectedNumber.toString()] = {'x' : startX, 'y' : startY}
-    pointsList[selectedNumber -1] = 1
+    waypoints[1] = {'x' : 500, 'y' : 500}
+    pointsList[0] = 1
 
+    
 }
+
+
 var cameraString = getParameterByName('c')
 if(cameraString == null){
 
@@ -1725,8 +1737,6 @@ camera.matrix.decompose(camera.position, camera.quaternion, camera.scale);
     console.log("useMapAngle")
     console.log(useMapAngle)
 
-    var startX = 500;
-    var startY = 500;
     
     animLoop = false
     
